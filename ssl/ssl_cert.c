@@ -275,6 +275,19 @@ CERT *ssl_cert_dup(CERT *cert)
     ret->dh_tmp_cb = cert->dh_tmp_cb;
 #endif
 
+#ifndef OPENSSL_NO_NEWHOPE
+    if (cert->nh_tmp != NULL) {
+        ret->nh_tmp = NEWHOPE_new(NEWHOPE_get_size(cert->nh_tmp),
+                                  NEWHOPE_ROLE_INITIATOR);
+        if (ret->nh_tmp == NULL) {
+            SSLerr(SSL_F_SSL_CERT_DUP, ERR_R_NH_LIB);
+            goto err;
+        }
+        NEWHOPE_copy_a(ret->nh_tmp, cert->nh_tmp);
+    }
+    ret->nh_tmp_cb = cert->nh_tmp_cb;
+#endif
+
 #ifndef OPENSSL_NO_ECDH
     if (cert->ecdh_tmp) {
         ret->ecdh_tmp = EC_KEY_dup(cert->ecdh_tmp);
@@ -483,7 +496,10 @@ void ssl_cert_free(CERT *c)
     if (c->ecdh_tmp)
         EC_KEY_free(c->ecdh_tmp);
 #endif
-
+#ifndef OPENSSL_NO_NEWHOPE
+    if (c->nh_tmp)
+    	NEWHOPE_free(c->nh_tmp);
+#endif
     ssl_cert_clear_certs(c);
     if (c->peer_sigalgs)
         OPENSSL_free(c->peer_sigalgs);
@@ -696,6 +712,12 @@ void ssl_sess_cert_free(SESS_CERT *sc)
 #ifndef OPENSSL_NO_ECDH
     if (sc->peer_ecdh_tmp != NULL)
         EC_KEY_free(sc->peer_ecdh_tmp);
+#endif
+#ifndef OPENSSL_NO_NEWHOPE
+    if (sc->peer_newhope_tmp != NULL)
+        NEWHOPE_free(sc->peer_newhope_tmp);
+    if (sc->peer_newhope_tmp_b != NULL)
+        OPENSSL_free(sc->peer_newhope_tmp_b);
 #endif
 
     OPENSSL_free(sc);

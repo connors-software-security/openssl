@@ -1,6 +1,6 @@
 /* ssl/ssl_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2015 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2017 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -84,6 +84,7 @@ static ERR_STRING_DATA SSL_str_functs[] = {
     {ERR_FUNC(SSL_F_DTLS1_CHECK_TIMEOUT_NUM), "dtls1_check_timeout_num"},
     {ERR_FUNC(SSL_F_DTLS1_CLIENT_HELLO), "dtls1_client_hello"},
     {ERR_FUNC(SSL_F_DTLS1_CONNECT), "dtls1_connect"},
+    {ERR_FUNC(SSL_F_DTLS1_ENC), "DTLS1_ENC"},
     {ERR_FUNC(SSL_F_DTLS1_GET_HELLO_VERIFY), "DTLS1_GET_HELLO_VERIFY"},
     {ERR_FUNC(SSL_F_DTLS1_GET_MESSAGE), "dtls1_get_message"},
     {ERR_FUNC(SSL_F_DTLS1_GET_MESSAGE_FRAGMENT),
@@ -404,6 +405,8 @@ static ERR_STRING_DATA SSL_str_reasons[] = {
     {ERR_REASON(SSL_R_BAD_MAC_DECODE), "bad mac decode"},
     {ERR_REASON(SSL_R_BAD_MAC_LENGTH), "bad mac length"},
     {ERR_REASON(SSL_R_BAD_MESSAGE_TYPE), "bad message type"},
+    {ERR_REASON(SSL_R_BAD_NH_A_METHOD), "bad nh a method"},
+    {ERR_REASON(SSL_R_BAD_NH_POLY_LENGTH), "bad nh poly length"},
     {ERR_REASON(SSL_R_BAD_PACKET_LENGTH), "bad packet length"},
     {ERR_REASON(SSL_R_BAD_PROTOCOL_VERSION_NUMBER),
      "bad protocol version number"},
@@ -551,10 +554,13 @@ static ERR_STRING_DATA SSL_str_reasons[] = {
     {ERR_REASON(SSL_R_MISSING_SRP_PARAM), "can't find SRP server param"},
     {ERR_REASON(SSL_R_MISSING_TMP_DH_KEY), "missing tmp dh key"},
     {ERR_REASON(SSL_R_MISSING_TMP_ECDH_KEY), "missing tmp ecdh key"},
+    {ERR_REASON(SSL_R_MISSING_TMP_NH_KEY), "missing tmp nh key"},
     {ERR_REASON(SSL_R_MISSING_TMP_RSA_KEY), "missing tmp rsa key"},
     {ERR_REASON(SSL_R_MISSING_TMP_RSA_PKEY), "missing tmp rsa pkey"},
     {ERR_REASON(SSL_R_MISSING_VERIFY_MESSAGE), "missing verify message"},
     {ERR_REASON(SSL_R_MULTIPLE_SGC_RESTARTS), "multiple sgc restarts"},
+    {ERR_REASON(SSL_R_NH_PUBLIC_VALUE_LENGTH_IS_WRONG),
+     "nh public value length is wrong"},
     {ERR_REASON(SSL_R_NON_SSLV2_INITIAL_PACKET), "non sslv2 initial packet"},
     {ERR_REASON(SSL_R_NO_CERTIFICATES_RETURNED), "no certificates returned"},
     {ERR_REASON(SSL_R_NO_CERTIFICATE_ASSIGNED), "no certificate assigned"},

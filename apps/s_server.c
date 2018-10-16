@@ -194,6 +194,9 @@ typedef unsigned int u_int;
 #ifndef OPENSSL_NO_SRP
 # include <openssl/srp.h>
 #endif
+#ifndef OPENSSL_NO_NEWHOPE
+# include <openssl/newhope.h>
+#endif
 #include "s_apps.h"
 #include "timeouts.h"
 
@@ -564,6 +567,15 @@ static void sv_usage(void)
                " -named_curve arg  - Elliptic curve name to use for ephemeral ECDH keys.\n"
                "                 Use \"openssl ecparam -list_curves\" for all names\n"
                "                 (default is nistp256).\n");
+#endif
+#ifndef OPENSSL_NO_NEWHOPE
+    BIO_printf(bio_err,
+               " -nh_mode arg  - New Hope parameter generation method.\n"
+ 		       "        		(default is AES).\n");
+    BIO_printf(bio_err,
+    			" -nh_a arg    - New Hope named fixed a parameter\n"
+    			"				 Use \"openssl nhparam -list_param\" for all names\n");
+
 #endif
 #ifdef FIONBIO
     BIO_printf(bio_err, " -nbio         - Run with non-blocking IO\n");
@@ -1099,6 +1111,9 @@ int MAIN(int argc, char *argv[])
     char *vfyCApath = NULL, *vfyCAfile = NULL;
     unsigned char *context = NULL;
     char *dhfile = NULL;
+    int nh_param_method = 0;
+    char *nh_param_name = NULL;
+    int nh_param_nid = NID_undef;
     int badop = 0;
     int ret = 1;
     int build_chain = 0;
@@ -1330,6 +1345,20 @@ int MAIN(int argc, char *argv[])
                 goto bad;
             vfyCAfile = *(++argv);
         }
+#ifndef OPENSSL_NO_NEWHOPE
+        else if (strcmp(*argv, "-nh_mode") == 0) {
+        	if (--argc < 1)
+        		goto bad;
+        	errno = 0;
+        	nh_param_method = strtol(*(++argv), NULL, 10);
+        	if(errno)
+        		goto bad;
+        } else if(strcmp(*argv, "-nh_a") == 0) {
+        	if(--argc < 1)
+        		goto bad;
+        	nh_param_name = *(++argv);
+        }
+#endif
 #ifdef FIONBIO
         else if (strcmp(*argv, "-nbio") == 0) {
             s_nbio = 1;
@@ -1923,6 +1952,31 @@ int MAIN(int argc, char *argv[])
 # endif
         DH_free(dh);
     }
+#endif
+#ifndef OPENSSL_NO_NEWHOPE
+    NEWHOPE *nh = NEWHOPE_new(NEWHOPE_1024, NEWHOPE_ROLE_INITIATOR);
+    if (nh == NULL){
+    	ERR_print_errors(bio_err);
+    	goto end;
+    }
+    (void)BIO_flush(bio_s_out);
+    if(nh_param_method > 0 && nh_param_method <= NH_A_METHOD_COUNT){
+    	NEWHOPE_set_a_method(nh, nh_param_method);
+    }
+    else {
+        BIO_printf(bio_s_out, "Using default nh_mode\n");
+        (void)BIO_flush(bio_s_out);
+        NEWHOPE_set_a_method(nh, NEWHOPE_A_METHOD_GS_AES);
+    }
+    if(nh_param_name != NULL){
+    	nh_param_nid = OBJ_txt2nid(nh_param_name);
+    }
+	if(nh_param_nid != NID_undef){
+		NEWHOPE_set_a_nid(nh, nh_param_nid);
+	}
+    else NEWHOPE_set_a_nid(nh, 0);
+    SSL_CTX_set_tmp_nh(ctx, nh);
+    NEWHOPE_free(nh);
 #endif
 
     if (!set_cert_key_stuff(ctx, s_cert, s_key, s_chain, build_chain))

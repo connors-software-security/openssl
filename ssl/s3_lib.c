@@ -2888,6 +2888,23 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[] = {
 
 #endif                          /* OPENSSL_NO_ECDH */
 
+#ifndef OPENSSL_NO_NEWHOPE
+    {
+     1,
+	 TLS1_TXT_NEWHOPE_RSA_WITH_AES_256_GCM_SHA256,
+	 TLS1_CK_NEWHOPE_RSA_WITH_AES_256_GCM_SHA256,
+     SSL_kNHE,
+     SSL_aRSA,
+     SSL_AES256GCM,
+     SSL_AEAD,
+     SSL_TLSV1_2,
+     SSL_NOT_EXP | SSL_HIGH,
+     SSL_HANDSHAKE_MAC_SHA256 | TLS1_PRF_SHA256,
+     256,
+     256,
+     },
+#endif
+     
 #ifdef TEMP_GOST_TLS
 /* Cipher FF00 */
     {
@@ -3062,6 +3079,10 @@ void ssl3_free(SSL *s)
     if (s->s3->tmp.ecdh != NULL)
         EC_KEY_free(s->s3->tmp.ecdh);
 #endif
+#ifndef OPENSSL_NO_NEWHOPE
+    if (s->s3->tmp.nh != NULL)
+        NEWHOPE_free(s->s3->tmp.nh);
+#endif
 
     if (s->s3->tmp.ca_names != NULL)
         sk_X509_NAME_pop_free(s->s3->tmp.ca_names, X509_NAME_free);
@@ -3189,6 +3210,9 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
 # ifndef OPENSSL_NO_DSA
            cmd == SSL_CTRL_SET_TMP_DH || cmd == SSL_CTRL_SET_TMP_DH_CB ||
 # endif
+# ifndef OPENSSL_NO_NEWHOPE
+           cmd == SSL_CTRL_SET_TMP_NH || cmd == SSL_CTRL_SET_TMP_NH_CB ||
+# endif
            0) {
         if (!ssl_cert_inst(&s->cert)) {
             SSLerr(SSL_F_SSL3_CTRL, ERR_R_MALLOC_FAILURE);
@@ -3267,6 +3291,34 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
         }
         break;
     case SSL_CTRL_SET_TMP_DH_CB:
+        {
+            SSLerr(SSL_F_SSL3_CTRL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+            return (ret);
+        }
+        break;
+#endif
+#ifndef OPENSSL_NO_NEWHOPE
+    case SSL_CTRL_SET_TMP_NH:
+        {
+            NEWHOPE *nhp = (NEWHOPE *) parg;
+            NEWHOPE *nh;
+            if (nhp == NULL) {
+                SSLerr(SSL_F_SSL3_CTRL, ERR_R_PASSED_NULL_PARAMETER);
+                return (ret);
+            }
+            nh = NEWHOPE_new(NEWHOPE_get_size(nhp), NEWHOPE_ROLE_INITIATOR);
+            if (nh == NULL) {
+                SSLerr(SSL_F_SSL3_CTRL, ERR_R_NH_LIB);
+                return (ret);
+            }
+            NEWHOPE_copy_a(nh, nhp);
+            if (s->cert->nh_tmp != NULL)
+                NEWHOPE_free(s->cert->nh_tmp);
+            s->cert->nh_tmp = nh;
+            ret = 1;
+        }
+        break;
+    case SSL_CTRL_SET_TMP_NH_CB:
         {
             SSLerr(SSL_F_SSL3_CTRL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
             return (ret);
@@ -3659,6 +3711,9 @@ long ssl3_callback_ctrl(SSL *s, int cmd, void (*fp) (void))
 # ifndef OPENSSL_NO_DSA
            cmd == SSL_CTRL_SET_TMP_DH_CB ||
 # endif
+# ifndef OPENSSL_NO_NEWHOPE
+           cmd == SSL_CTRL_SET_TMP_NH_CB ||
+# endif
            0) {
         if (!ssl_cert_inst(&s->cert)) {
             SSLerr(SSL_F_SSL3_CALLBACK_CTRL, ERR_R_MALLOC_FAILURE);
@@ -3679,6 +3734,13 @@ long ssl3_callback_ctrl(SSL *s, int cmd, void (*fp) (void))
     case SSL_CTRL_SET_TMP_DH_CB:
         {
             s->cert->dh_tmp_cb = (DH *(*)(SSL *, int, int))fp;
+        }
+        break;
+#endif
+#ifndef OPENSSL_NO_NEWHOPE
+    case SSL_CTRL_SET_TMP_NH_CB:
+        {
+            s->cert->nh_tmp_cb = (NEWHOPE *(*)(SSL *, int, int))fp;
         }
         break;
 #endif
@@ -3769,6 +3831,32 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
          * break;
          */
     case SSL_CTRL_SET_TMP_DH_CB:
+        {
+            SSLerr(SSL_F_SSL3_CTX_CTRL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+            return (0);
+        }
+        break;
+#endif
+#ifndef OPENSSL_NO_NEWHOPE
+    case SSL_CTRL_SET_TMP_NH:
+        {
+            NEWHOPE *new = NULL, *nh;
+
+            nh = (NEWHOPE *)parg;
+
+            nh = (NEWHOPE *)parg;
+            new = NEWHOPE_new(NEWHOPE_get_size(nh), NEWHOPE_ROLE_INITIATOR);
+            if (new == NULL) {
+                SSLerr(SSL_F_SSL3_CTX_CTRL, ERR_R_NH_LIB);
+                return 0;
+            }
+            NEWHOPE_copy_a(new, nh);
+            if (cert->nh_tmp != NULL)
+                NEWHOPE_free(cert->nh_tmp);
+            cert->nh_tmp = new;
+            return 1;
+        }
+    case SSL_CTRL_SET_TMP_NH_CB:
         {
             SSLerr(SSL_F_SSL3_CTX_CTRL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
             return (0);
@@ -3999,6 +4087,13 @@ long ssl3_ctx_callback_ctrl(SSL_CTX *ctx, int cmd, void (*fp) (void))
     case SSL_CTRL_SET_TMP_ECDH_CB:
         {
             cert->ecdh_tmp_cb = (EC_KEY *(*)(SSL *, int, int))fp;
+        }
+        break;
+#endif
+#ifndef OPENSSL_NO_NEWHOPE
+    case SSL_CTRL_SET_TMP_NH_CB:
+        {
+            cert->nh_tmp_cb = (NEWHOPE *(*)(SSL *, int, int))fp;
         }
         break;
 #endif

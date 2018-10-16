@@ -62,9 +62,9 @@
  * [including the GNU Public Licence.]
  */
 
-#define NUM_NID 958
-#define NUM_SN 951
-#define NUM_LN 951
+#define NUM_NID 960
+#define NUM_SN 953
+#define NUM_LN 953
 #define NUM_OBJ 890
 
 static const unsigned char lvalues[6255]={
@@ -2514,6 +2514,8 @@ static const ASN1_OBJECT nid_objs[NUM_NID]={
 	NID_jurisdictionStateOrProvinceName,11,&(lvalues[6232]),0},
 {"jurisdictionC","jurisdictionCountryName",
 	NID_jurisdictionCountryName,11,&(lvalues[6243]),0},
+{"LUKE_A","luke-a",NID_luke_a,0,NULL,0},
+{"LEIA_A","leia-a",NID_leia_a,0,NULL,0},
 };
 
 static const unsigned int sn_objs[NUM_SN]={
@@ -2620,6 +2622,8 @@ static const unsigned int sn_objs[NUM_SN]={
 646,	/* "JOINT-ISO-ITU-T" */
 773,	/* "KISA" */
 15,	/* "L" */
+959,	/* "LEIA_A" */
+958,	/* "LUKE_A" */
 856,	/* "LocalKeySet" */
  3,	/* "MD2" */
 257,	/* "MD4" */
@@ -4075,8 +4079,10 @@ static const unsigned int ln_objs[NUM_LN]={
 773,	/* "kisa" */
 477,	/* "lastModifiedBy" */
 476,	/* "lastModifiedTime" */
+959,	/* "leia-a" */
 157,	/* "localKeyID" */
 15,	/* "localityName" */
+958,	/* "luke-a" */
 480,	/* "mXRecord" */
 493,	/* "mailPreferenceOption" */
 467,	/* "manager" */

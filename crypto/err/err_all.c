@@ -107,6 +107,9 @@
 #ifndef OPENSSL_NO_JPAKE
 # include <openssl/jpake.h>
 #endif
+#ifndef OPENSSL_NO_NEWHOPE
+# include <openssl/newhope.h>
+#endif
 
 void ERR_load_crypto_strings(void)
 {
@@ -163,6 +166,9 @@ void ERR_load_crypto_strings(void)
 # endif
 # ifndef OPENSSL_NO_JPAKE
     ERR_load_JPAKE_strings();
+# endif
+#ifndef OPENSSL_NO_NEWHOPE
+    ERR_load_NEWHOPE_strings();
 # endif
 #endif
 }

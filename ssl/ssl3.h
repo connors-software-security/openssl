@@ -124,6 +124,10 @@
 # include <openssl/evp.h>
 # include <openssl/ssl.h>
 
+# ifndef OPENSSL_NO_NEWHOPE
+# include <openssl/newhope.h>
+# endif
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -567,6 +571,9 @@ typedef struct ssl3_state_st {
 #  endif
 #  ifndef OPENSSL_NO_ECDH
         EC_KEY *ecdh;           /* holds short lived ECDH key */
+#  endif
+#  ifndef OPENSSL_NO_NEWHOPE
+	NEWHOPE *nh;
 #  endif
         /* used when SSL_ST_FLUSH_DATA is entered */
         int next_state;

@@ -4192,3 +4192,11 @@
 #define LN_jurisdictionCountryName              "jurisdictionCountryName"
 #define NID_jurisdictionCountryName             957
 #define OBJ_jurisdictionCountryName             1L,3L,6L,1L,4L,1L,311L,60L,2L,1L,3L
+
+#define SN_luke_a               "LUKE_A"
+#define LN_luke_a               "luke-a"
+#define NID_luke_a              958
+
+#define SN_leia_a               "LEIA_A"
+#define LN_leia_a               "leia-a"
+#define NID_leia_a              959

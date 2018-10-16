@@ -1,0 +1,23 @@
+Why do we need a new OpenSSL?
+It is well known that a big enough quantum computer will break many of the cryptographic systems in use today.  All of the key agreement algorithms used to set up secure TLS sessions may be broken.  Therefore, we need to find new algorithms to replace these and to implement these new algorithms in libraries like OpenSSL.
+
+What algorithms are you using?
+One class of algorithms believed to be secure against a quantum computer are Ring Learning with Errors (RLWE) algorithms.  The most famous example of a Ring Learning with Errors algorithm is New Hope, which was trialled by Google in 2016. 
+
+The basic protocol follows the method of Bos, Costello, Naehrig and Stebila in "Post-quantum key exchange for the TLS protocol from the ring learning with errors problem".  To improve this we use the more efficient reconciliation mechanism and parameters from "Post-quantum key exchange - a new hope" by Alkim, Ducas, Pöppelmann and Schwabe.  For public parameter generation we use the algorithms defined in "Speeding up R-LWE post-quantum key exchange" by Gueron and Schlieker, which improves security while maintaining efficiency.   We have improved the transform algorithms by taking the methods used in "Speeding up the Number Theoretic Transform for Faster Ideal Lattice-Based Cryptography" by Longa and Naehrig and speeding these up further.  We include vectorized implementations of the transforms for the SSE4.1, AVX2 and NEON SIMD instruction sets.
+
+Why use this implementation?
+In this fork of OpenSSL we incorporate ideas from different sources to produce a high performance implementation.  This is therefore a useable and highly optimized implementation of a post-quantum algorithm, not just a proof of concept.
+
+On our test machine this implementation is capable of 31000 ephemeral key exchanges per second compared to 7000 ECDH key exchanges per second on the same machine.  When public parameter generation is included we can perform 20000 key exchanges per second.
+
+How does this work?
+Our fork contains cryptographic primitives as well as a TLS cipher suite (NEWHOPE-RSA-WITH-AES-256-GCM-SHA256).  We introduce two new arguments to OpenSSL's s_server routine, to allow configuration of this cipher suite.  These are -nh_mode, which allows the user to select a New Hope parameter generation method and -nh_a which allows the user to select a named New Hope parameter.  Currently the options are:
+
+-nh_mode: 1 = AES generated parameter, 2 = SHA256 generated parameter, 3 = Named parameter
+
+-nh_a: luke-a, leia-a
+
+To test the cipher suite you can run:
+server: ./openssl s_server -cert [certificate] -cipher NEWHOPE-RSA-AES-256-GCM-SHA256
+client: ./openssl s_client -cipher NEWHOPE-RSA-AES-256-GCM-SHA256

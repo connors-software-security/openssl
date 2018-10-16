@@ -563,6 +563,9 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 # define TLS1_CK_ECDH_RSA_WITH_AES_128_GCM_SHA256        0x0300C031
 # define TLS1_CK_ECDH_RSA_WITH_AES_256_GCM_SHA384        0x0300C032
 
+/* NEWHOPE based ciphersuites */
+# define TLS1_CK_NEWHOPE_RSA_WITH_AES_256_GCM_SHA256      0x0300F001
+
 /*
  * XXX * Backward compatibility alert: + * Older versions of OpenSSL gave
  * some DHE ciphers names with "EDH" + * instead of "DHE".  Going forward, we
@@ -712,6 +715,9 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 # define TLS1_TXT_ECDHE_RSA_WITH_AES_256_GCM_SHA384      "ECDHE-RSA-AES256-GCM-SHA384"
 # define TLS1_TXT_ECDH_RSA_WITH_AES_128_GCM_SHA256       "ECDH-RSA-AES128-GCM-SHA256"
 # define TLS1_TXT_ECDH_RSA_WITH_AES_256_GCM_SHA384       "ECDH-RSA-AES256-GCM-SHA384"
+
+/* NEW HOPE based ciphersuites */
+# define TLS1_TXT_NEWHOPE_RSA_WITH_AES_256_GCM_SHA256    "NEWHOPE-RSA-AES-256-GCM-SHA256"
 
 # define TLS_CT_RSA_SIGN                 1
 # define TLS_CT_DSS_SIGN                 2

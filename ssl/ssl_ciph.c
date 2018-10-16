@@ -1737,6 +1737,9 @@ char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf, int len)
     case SSL_kGOST:
         kx = "GOST";
         break;
+    case SSL_kNHE:
+	kx = "NEWHOPE";
+	break;
     default:
         kx = "unknown";
     }

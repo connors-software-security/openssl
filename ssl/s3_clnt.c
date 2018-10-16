@@ -1385,6 +1385,12 @@ int ssl3_get_key_exchange(SSL *s)
     int curve_nid = 0;
     int encoded_pt_len = 0;
 #endif
+#ifndef OPENSSL_NO_NEWHOPE
+    NEWHOPE *nh = NULL;
+    int *nh_b = NULL;
+	int a_method;
+	unsigned int a_nid;
+#endif
 
     EVP_MD_CTX_init(&md_ctx);
 
@@ -1406,7 +1412,7 @@ int ssl3_get_key_exchange(SSL *s)
          * Can't skip server key exchange if this is an ephemeral
          * ciphersuite.
          */
-        if (alg_k & (SSL_kDHE | SSL_kECDHE)) {
+        if (alg_k & (SSL_kDHE | SSL_kECDHE | SSL_kNHE)) {
             SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_UNEXPECTED_MESSAGE);
             al = SSL_AD_UNEXPECTED_MESSAGE;
             goto f_err;
@@ -1446,6 +1452,16 @@ int ssl3_get_key_exchange(SSL *s)
         if (s->session->sess_cert->peer_ecdh_tmp) {
             EC_KEY_free(s->session->sess_cert->peer_ecdh_tmp);
             s->session->sess_cert->peer_ecdh_tmp = NULL;
+        }
+#endif
+#ifndef OPENSSL_NO_NEWHOPE
+        if (s->session->sess_cert->peer_newhope_tmp) {
+            NEWHOPE_free(s->session->sess_cert->peer_newhope_tmp);
+            s->session->sess_cert->peer_newhope_tmp = NULL;
+        }
+        if (s->session->sess_cert->peer_newhope_tmp_b) {
+            OPENSSL_free(s->session->sess_cert->peer_newhope_tmp_b);
+            s->session->sess_cert->peer_newhope_tmp_b = NULL;
         }
 #endif
     } else {
@@ -1776,17 +1792,115 @@ int ssl3_get_key_exchange(SSL *s)
                                 sess_cert->peer_pkeys[SSL_PKEY_DSA_SIGN].
                                 x509);
 # endif
-        /* else anonymous DH, so no certificate or pkey. */
+		/* else anonymous DH, so no certificate or pkey. */
 
-        s->session->sess_cert->peer_dh_tmp = dh;
-        dh = NULL;
-    } else if ((alg_k & SSL_kDHr) || (alg_k & SSL_kDHd)) {
-        al = SSL_AD_ILLEGAL_PARAMETER;
-        SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE,
-               SSL_R_TRIED_TO_USE_UNSUPPORTED_CIPHER);
-        goto f_err;
-    }
+		s->session->sess_cert->peer_dh_tmp = dh;
+		dh = NULL;
+	} else if ((alg_k & SSL_kDHr) || (alg_k & SSL_kDHd)) {
+		al = SSL_AD_ILLEGAL_PARAMETER;
+		SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE,
+				SSL_R_TRIED_TO_USE_UNSUPPORTED_CIPHER);
+		goto f_err;
+	}
 #endif                          /* !OPENSSL_NO_DH */
+#ifndef OPENSSL_NO_NEWHOPE
+	else if (alg_k & SSL_kNHE) {
+		int j;
+
+		param_len = 4;
+		if (param_len > n) {
+			SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_LENGTH_TOO_SHORT);
+			goto f_err;
+		}
+		n2s(p, i);
+
+		if (/*i != 512 &&*/i != 1024) {
+			SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_NH_POLY_LENGTH);
+			goto f_err;
+		}
+
+		n2s(p, a_method);
+
+		switch (a_method) {
+		case NEWHOPE_A_METHOD_GS_AES:
+            case NEWHOPE_A_METHOD_GS_SHA256:
+                if (32 > n - param_len) {
+                    SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_LENGTH_TOO_SHORT);
+                    goto f_err;
+                }
+                param_len += 32;
+                break;
+            case NEWHOPE_A_METHOD_EXPLICIT_BITREV_NTT:
+            	if(sizeof(unsigned int) > n-param_len){
+                    SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_LENGTH_TOO_SHORT);
+                    goto f_err;
+            	}
+            	param_len += sizeof(unsigned int);
+            	break;
+            default:
+                SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_NH_A_METHOD);
+                goto f_err;
+        }
+
+        if (2 * i > n - param_len) {
+            SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_LENGTH_TOO_SHORT);
+            goto f_err;
+        }
+        param_len += 2 * i;
+
+        if ((nh = NEWHOPE_new(i, NEWHOPE_ROLE_RESPONDER)) == NULL) {
+            SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, ERR_R_MALLOC_FAILURE);
+            goto err;
+        }
+
+        if ((nh_b = OPENSSL_malloc(3 * sizeof(int) * i)) == NULL) {
+            SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, ERR_R_MALLOC_FAILURE);
+            goto err;
+        }
+
+        memset(nh_b, 0, 3 * sizeof(int) * i);
+
+        switch (a_method) {
+            case NEWHOPE_A_METHOD_GS_AES:
+                if (!NEWHOPE_gen_a_GS_AES(nh, p)) {
+                    SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, ERR_R_NH_LIB);
+                    goto err;
+                }
+                p += 32;
+                break;
+            case NEWHOPE_A_METHOD_GS_SHA256:
+                if (!NEWHOPE_gen_a_GS_SHA256(nh, p)) {
+                    SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, ERR_R_NH_LIB);
+                    goto err;
+                }
+                p += 32;
+                break;
+            case NEWHOPE_A_METHOD_EXPLICIT_BITREV_NTT:
+            	n2s(p, a_nid);
+                NEWHOPE_set_a_from_nid(nh, a_nid);
+                break;
+        }
+
+        for (j = 0; j < i; ++j) {
+            n2s(p, nh_b[j]);
+        }
+
+        n -= param_len;
+
+        if (0) ;
+# ifndef OPENSSL_NO_RSA
+        else if (alg_a & SSL_aRSA)
+            pkey =
+                X509_get_pubkey(s->session->
+                                sess_cert->peer_pkeys[SSL_PKEY_RSA_ENC].x509);
+# endif
+
+        s->session->sess_cert->peer_newhope_tmp = nh;
+        s->session->sess_cert->peer_newhope_tmp_b = nh_b;
+        nh = NULL;
+        nh_b = NULL;
+    }
+#endif
 
 #ifndef OPENSSL_NO_ECDH
     else if (alg_k & SSL_kEECDH) {
@@ -2034,6 +2148,12 @@ int ssl3_get_key_exchange(SSL *s)
 #ifndef OPENSSL_NO_DH
     if (dh != NULL)
         DH_free(dh);
+#endif
+#ifndef OPENSSL_NO_NEWHOPE
+    if (nh != NULL)
+        NEWHOPE_free(nh);
+    if (nh_b != NULL)
+        OPENSSL_free(nh_b);
 #endif
 #ifndef OPENSSL_NO_ECDH
     BN_CTX_free(bn_ctx);
@@ -2765,6 +2885,64 @@ int ssl3_send_client_key_exchange(SSL *s)
             }
 
             DH_free(dh_clnt);
+        }
+#endif
+
+#ifndef OPENSSL_NO_NEWHOPE
+        else if (alg_k & SSL_kNHE) {
+            SESS_CERT *scert = s->session->sess_cert;
+            NEWHOPE *nh;
+            unsigned char key[32];
+            int i;
+
+            if (scert == NULL) {
+                ssl3_send_alert(s, SSL3_AL_FATAL, SSL_AD_UNEXPECTED_MESSAGE);
+                SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,
+                       SSL_R_UNEXPECTED_MESSAGE);
+                goto err;
+            }
+
+            if (scert->peer_newhope_tmp == NULL ||
+                scert->peer_newhope_tmp_b == NULL) {
+                SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,
+                       ERR_R_INTERNAL_ERROR);
+                goto err;
+            }
+
+            nh = scert->peer_newhope_tmp;
+
+            n = NEWHOPE_get_size(nh);
+
+            if (!NEWHOPE_generate_key_binomial(nh)) {
+                SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,
+                       ERR_R_NH_LIB);
+                goto err;
+            }
+
+            if (!NEWHOPE_respond(nh, scert->peer_newhope_tmp_b, n,
+                                 &scert->peer_newhope_tmp_b[n], n,
+                                 &scert->peer_newhope_tmp_b[n * 2], n,
+                                 key, 32)) {
+                SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,
+                       ERR_R_NH_LIB);
+                goto err;
+            }
+
+            for (i = 0; i < n; ++i) {
+                s2n(scert->peer_newhope_tmp_b[n + i], p);
+            }
+            for (i = 0; i < n; ++i) {
+                s2n(scert->peer_newhope_tmp_b[2 * n + i], p);
+            }
+            n = 4 * n;
+
+            s->session->master_key_length =
+                s->method->ssl3_enc->generate_master_secret(s,
+                                                            s->
+                                                            session->master_key,
+                                                            key, 32);
+
+            OPENSSL_cleanse(key, sizeof(key));
         }
 #endif
 

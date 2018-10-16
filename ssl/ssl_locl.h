@@ -314,6 +314,8 @@
 # define SSL_kGOST       0x00000200L
 /* SRP */
 # define SSL_kSRP        0x00000400L
+/* ephemeral newhope */
+# define SSL_kNHE	 0x00000800L
 
 /* Bits for algorithm_auth (server authentication) */
 /* RSA auth */
@@ -631,6 +633,10 @@ typedef struct cert_st {
     /* Select ECDH parameters automatically */
     int ecdh_tmp_auto;
 # endif
+# ifndef OPENSSL_NO_NEWHOPE
+    NEWHOPE *nh_tmp;
+    NEWHOPE *(*nh_tmp_cb) (SSL *ssl, int is_export, int keysize);
+# endif
     /* Flags related to certificates */
     unsigned int cert_flags;
     CERT_PKEY pkeys[SSL_PKEY_NUM];
@@ -719,6 +725,10 @@ typedef struct sess_cert_st {
 # endif
 # ifndef OPENSSL_NO_ECDH
     EC_KEY *peer_ecdh_tmp;
+# endif
+# ifndef OPENSSL_NO_NEWHOPE
+    NEWHOPE *peer_newhope_tmp;
+    int *peer_newhope_tmp_b;
 # endif
     int references;             /* actually always 1 at the moment */
 } SESS_CERT;

@@ -2441,6 +2441,11 @@ void ssl_set_cert_masks(CERT *c, const SSL_CIPHER *cipher)
     emask_a |= SSL_aPSK;
 #endif
 
+#ifndef OPENSSL_NO_NEWHOPE
+    mask_k |= SSL_kNHE;
+    emask_k |= SSL_kNHE;
+#endif
+
     c->mask_k = mask_k;
     c->mask_a = mask_a;
     c->export_mask_k = emask_k;
@@ -3381,6 +3386,22 @@ void SSL_set_tmp_dh_callback(SSL *ssl, DH *(*dh) (SSL *ssl, int is_export,
                                                   int keylength))
 {
     SSL_callback_ctrl(ssl, SSL_CTRL_SET_TMP_DH_CB, (void (*)(void))dh);
+}
+#endif
+
+#ifndef OPENSSL_NO_NEWHOPE
+void SSL_CTX_set_tmp_nh_callback(SSL_CTX *ctx,
+                                 NEWHOPE *(*nh) (SSL *ssl, int is_export,
+                                                 int keylength))
+{
+    SSL_CTX_callback_ctrl(ctx, SSL_CTRL_SET_TMP_NH_CB, (void (*)(void))nh);
+}
+
+void SSL_set_tmp_nh_callback(SSL *ssl,
+                             NEWHOPE *(*nh) (SSL *ssl, int is_export,
+                                             int keylength))
+{
+    SSL_callback_ctrl(ssl, SSL_CTRL_SET_TMP_NH_CB, (void (*)(void))nh);
 }
 #endif
 
