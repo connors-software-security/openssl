@@ -129,9 +129,7 @@ int MAIN(int argc, char **argv)
     char *inrand = NULL;
     char *macalg = NULL;
     char *CApath = NULL, *CAfile = NULL;
-# ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-# endif
 
     apps_startup();
 
@@ -406,9 +404,7 @@ int MAIN(int argc, char **argv)
                    "-LMK          Add local machine keyset attribute to private key\n");
         goto end;
     }
-# ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine, 0);
-# endif
 
     if (passarg) {
         if (export_cert)
@@ -485,7 +481,7 @@ int MAIN(int argc, char **argv)
         CRYPTO_push_info("read MAC password");
 # endif
         if (EVP_read_pw_string
-            (macpass, sizeof macpass, "Enter MAC Password:", export_cert)) {
+            (macpass, sizeof(macpass), "Enter MAC Password:", export_cert)) {
             BIO_printf(bio_err, "Can't read Password\n");
             goto end;
         }
@@ -633,13 +629,13 @@ int MAIN(int argc, char **argv)
 # endif
 
         if (!noprompt &&
-            EVP_read_pw_string(pass, sizeof pass, "Enter Export Password:",
+            EVP_read_pw_string(pass, sizeof(pass), "Enter Export Password:",
                                1)) {
             BIO_printf(bio_err, "Can't read Password\n");
             goto export_end;
         }
         if (!twopass)
-            BUF_strlcpy(macpass, pass, sizeof macpass);
+            BUF_strlcpy(macpass, pass, sizeof(macpass));
 
 # ifdef CRYPTO_MDEBUG
         CRYPTO_pop_info();
@@ -702,7 +698,7 @@ int MAIN(int argc, char **argv)
     CRYPTO_push_info("read import password");
 # endif
     if (!noprompt
-        && EVP_read_pw_string(pass, sizeof pass, "Enter Import Password:",
+        && EVP_read_pw_string(pass, sizeof(pass), "Enter Import Password:",
                               0)) {
         BIO_printf(bio_err, "Can't read Password\n");
         goto end;
@@ -712,7 +708,7 @@ int MAIN(int argc, char **argv)
 # endif
 
     if (!twopass)
-        BUF_strlcpy(macpass, pass, sizeof macpass);
+        BUF_strlcpy(macpass, pass, sizeof(macpass));
 
     if ((options & INFO) && p12->mac)
         BIO_printf(bio_err, "MAC Iteration %ld\n",
@@ -756,6 +752,7 @@ int MAIN(int argc, char **argv)
 # ifdef CRYPTO_MDEBUG
     CRYPTO_remove_all_info();
 # endif
+    release_engine(e);
     BIO_free(in);
     BIO_free_all(out);
     if (canames)
@@ -932,16 +929,70 @@ static int get_cert_chain(X509 *cert, X509_STORE *store,
 
 int alg_print(BIO *x, X509_ALGOR *alg)
 {
-    PBEPARAM *pbe;
-    const unsigned char *p;
-    p = alg->parameter->value.sequence->data;
-    pbe = d2i_PBEPARAM(NULL, &p, alg->parameter->value.sequence->length);
-    if (!pbe)
-        return 1;
-    BIO_printf(bio_err, "%s, Iteration %ld\n",
-               OBJ_nid2ln(OBJ_obj2nid(alg->algorithm)),
-               ASN1_INTEGER_get(pbe->iter));
-    PBEPARAM_free(pbe);
+    int pbenid, aparamtype;
+    ASN1_OBJECT *aoid;
+    void *aparam;
+    PBEPARAM *pbe = NULL;
+
+    X509_ALGOR_get0(&aoid, &aparamtype, &aparam, alg);
+
+    pbenid = OBJ_obj2nid(aoid);
+
+    BIO_printf(x, "%s", OBJ_nid2ln(pbenid));
+
+    /*
+     * If PBE algorithm is PBES2 decode algorithm parameters
+     * for additional details.
+     */
+    if (pbenid == NID_pbes2) {
+        PBE2PARAM *pbe2 = NULL;
+        int encnid;
+        if (aparamtype == V_ASN1_SEQUENCE)
+            pbe2 = ASN1_item_unpack(aparam, ASN1_ITEM_rptr(PBE2PARAM));
+        if (pbe2 == NULL) {
+            BIO_puts(x, "<unsupported parameters>");
+            goto done;
+        }
+        X509_ALGOR_get0(&aoid, &aparamtype, &aparam, pbe2->keyfunc);
+        pbenid = OBJ_obj2nid(aoid);
+        X509_ALGOR_get0(&aoid, NULL, NULL, pbe2->encryption);
+        encnid = OBJ_obj2nid(aoid);
+        BIO_printf(x, ", %s, %s", OBJ_nid2ln(pbenid),
+                   OBJ_nid2sn(encnid));
+        /* If KDF is PBKDF2 decode parameters */
+        if (pbenid == NID_id_pbkdf2) {
+            PBKDF2PARAM *kdf = NULL;
+            int prfnid;
+            if (aparamtype == V_ASN1_SEQUENCE)
+                kdf = ASN1_item_unpack(aparam, ASN1_ITEM_rptr(PBKDF2PARAM));
+            if (kdf == NULL) {
+                BIO_puts(x, "<unsupported parameters>");
+                goto done;
+            }
+
+            if (kdf->prf == NULL) {
+                prfnid = NID_hmacWithSHA1;
+            } else {
+                X509_ALGOR_get0(&aoid, NULL, NULL, kdf->prf);
+                prfnid = OBJ_obj2nid(aoid);
+            }
+            BIO_printf(x, ", Iteration %ld, PRF %s",
+                       ASN1_INTEGER_get(kdf->iter), OBJ_nid2sn(prfnid));
+            PBKDF2PARAM_free(kdf);
+        }
+        PBE2PARAM_free(pbe2);
+    } else {
+        if (aparamtype == V_ASN1_SEQUENCE)
+            pbe = ASN1_item_unpack(aparam, ASN1_ITEM_rptr(PBEPARAM));
+        if (pbe == NULL) {
+            BIO_puts(x, "<unsupported parameters>");
+            goto done;
+        }
+        BIO_printf(x, ", Iteration %ld", ASN1_INTEGER_get(pbe->iter));
+        PBEPARAM_free(pbe);
+    }
+ done:
+    BIO_puts(x, "\n");
     return 1;
 }
 
@@ -1056,4 +1107,6 @@ static int set_pbe(BIO *err, int *ppbe, const char *str)
     return 1;
 }
 
+#else
+static void *dummy = &dummy;
 #endif

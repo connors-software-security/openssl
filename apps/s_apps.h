@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -152,9 +152,8 @@ typedef fd_mask fd_set;
 #define PROTOCOL        "tcp"
 
 int do_server(int port, int type, int *ret,
-              int (*cb) (char *hostname, int s, int stype,
-                         unsigned char *context), unsigned char *context,
-              int naccept);
+              int (*cb) (int s, int stype, unsigned char *context),
+              unsigned char *context, int naccept);
 #ifdef HEADER_X509_H
 int MS_CALLBACK verify_callback(int ok, X509_STORE_CTX *ctx);
 #endif
@@ -199,7 +198,8 @@ int load_excert(SSL_EXCERT **pexc, BIO *err);
 void print_ssl_summary(BIO *bio, SSL *s);
 #ifdef HEADER_SSL_H
 int args_ssl(char ***pargs, int *pargc, SSL_CONF_CTX *cctx,
-             int *badarg, BIO *err, STACK_OF(OPENSSL_STRING) **pstr);
+             int *badarg, BIO *err, STACK_OF(OPENSSL_STRING) **pstr,
+             int *no_prot_opt);
 int args_ssl_call(SSL_CTX *ctx, BIO *err, SSL_CONF_CTX *cctx,
                   STACK_OF(OPENSSL_STRING) *str, int no_ecdhe, int no_jpake);
 int ssl_ctx_add_crls(SSL_CTX *ctx, STACK_OF(X509_CRL) *crls,

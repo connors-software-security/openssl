@@ -57,10 +57,10 @@ extern int srp_main(int argc,char *argv[]);
 #define FUNC_TYPE_CIPHER_ALG	6
 
 typedef struct {
-	int type;
-	const char *name;
-	int (*func)(int argc,char *argv[]);
-	} FUNCTION;
+    int type;
+    const char *name;
+    int (*func)(int argc, char *argv[]);
+} FUNCTION;
 DECLARE_LHASH_OF(FUNCTION);
 
 FUNCTION functions[] = {

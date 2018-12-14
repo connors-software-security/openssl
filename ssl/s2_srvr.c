@@ -526,11 +526,8 @@ static int get_client_master_key(SSL *s)
      * fails. See https://tools.ietf.org/html/rfc5246#section-7.4.7.1
      */
 
-    /*
-     * should be RAND_bytes, but we cannot work around a failure.
-     */
-    if (RAND_pseudo_bytes(rand_premaster_secret,
-                          (int)num_encrypted_key_bytes) <= 0)
+    if (RAND_bytes(rand_premaster_secret,
+                  (int)num_encrypted_key_bytes) <= 0)
         return 0;
 
     i = ssl_rsa_private_decrypt(s->cert, s->s2->tmp.enc,
@@ -727,7 +724,7 @@ static int get_client_hello(SSL *s)
     p += s->s2->tmp.session_id_length;
 
     /* challenge */
-    if (s->s2->challenge_length > sizeof s->s2->challenge) {
+    if (s->s2->challenge_length > sizeof(s->s2->challenge)) {
         ssl2_return_error(s, SSL2_PE_UNDEFINED_ERROR);
         SSLerr(SSL_F_GET_CLIENT_HELLO, ERR_R_INTERNAL_ERROR);
         return -1;
@@ -822,8 +819,7 @@ static int server_hello(SSL *s)
         /* make and send conn_id */
         s2n(SSL2_CONNECTION_ID_LENGTH, p); /* add conn_id length */
         s->s2->conn_id_length = SSL2_CONNECTION_ID_LENGTH;
-        if (RAND_pseudo_bytes(s->s2->conn_id, (int)s->s2->conn_id_length) <=
-            0)
+        if (RAND_bytes(s->s2->conn_id, (int)s->s2->conn_id_length) <= 0)
             return -1;
         memcpy(d, s->s2->conn_id, SSL2_CONNECTION_ID_LENGTH);
         d += SSL2_CONNECTION_ID_LENGTH;
@@ -876,7 +872,7 @@ static int get_client_finished(SSL *s)
     }
 
     /* SSL2_ST_GET_CLIENT_FINISHED_B */
-    if (s->s2->conn_id_length > sizeof s->s2->conn_id) {
+    if (s->s2->conn_id_length > sizeof(s->s2->conn_id)) {
         ssl2_return_error(s, SSL2_PE_UNDEFINED_ERROR);
         SSLerr(SSL_F_GET_CLIENT_FINISHED, ERR_R_INTERNAL_ERROR);
         return -1;
@@ -907,7 +903,7 @@ static int server_verify(SSL *s)
     if (s->state == SSL2_ST_SEND_SERVER_VERIFY_A) {
         p = (unsigned char *)s->init_buf->data;
         *(p++) = SSL2_MT_SERVER_VERIFY;
-        if (s->s2->challenge_length > sizeof s->s2->challenge) {
+        if (s->s2->challenge_length > sizeof(s->s2->challenge)) {
             SSLerr(SSL_F_SERVER_VERIFY, ERR_R_INTERNAL_ERROR);
             return -1;
         }
@@ -929,7 +925,7 @@ static int server_finish(SSL *s)
         p = (unsigned char *)s->init_buf->data;
         *(p++) = SSL2_MT_SERVER_FINISHED;
 
-        if (s->session->session_id_length > sizeof s->session->session_id) {
+        if (s->session->session_id_length > sizeof(s->session->session_id)) {
             SSLerr(SSL_F_SERVER_FINISH, ERR_R_INTERNAL_ERROR);
             return -1;
         }
@@ -962,7 +958,7 @@ static int request_certificate(SSL *s)
         p = (unsigned char *)s->init_buf->data;
         *(p++) = SSL2_MT_REQUEST_CERTIFICATE;
         *(p++) = SSL2_AT_MD5_WITH_RSA_ENCRYPTION;
-        if (RAND_pseudo_bytes(ccd, SSL2_MIN_CERT_CHALLENGE_LENGTH) <= 0)
+        if (RAND_bytes(ccd, SSL2_MIN_CERT_CHALLENGE_LENGTH) <= 0)
             return -1;
         memcpy(p, ccd, SSL2_MIN_CERT_CHALLENGE_LENGTH);
 

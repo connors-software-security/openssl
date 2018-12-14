@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 
     results = 0;
 
-    RAND_seed(rnd_seed, sizeof rnd_seed); /* or BN_generate_prime may fail */
+    RAND_seed(rnd_seed, sizeof(rnd_seed)); /* or BN_generate_prime may fail */
 
     argc--;
     argv++;
@@ -514,7 +514,7 @@ static void print_word(BIO *bp, BN_ULONG w)
 int test_div_word(BIO *bp)
 {
     BIGNUM a, b;
-    BN_ULONG r, s;
+    BN_ULONG r, rmod, s;
     int i;
 
     BN_init(&a);
@@ -528,7 +528,13 @@ int test_div_word(BIO *bp)
 
         s = b.d[0];
         BN_copy(&b, &a);
+        rmod = BN_mod_word(&b, s);
         r = BN_div_word(&b, s);
+
+        if (rmod != r) {
+            fprintf(stderr, "Mod (word) test failed!\n");
+            return 0;
+        }
 
         if (bp != NULL) {
             if (!results) {

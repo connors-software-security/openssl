@@ -70,12 +70,15 @@ HEARTBEATTEST=  heartbeat_test
 CONSTTIMETEST=  constant_time_test
 VERIFYEXTRATEST=	verify_extra_test
 CLIENTHELLOTEST=	clienthellotest
+BADDTLSTEST=	bad_dtls_test
 SSLV2CONFTEST = 	sslv2conftest
 NEWHOPETEST =	newhopetest
 NEWHOPEINITIATOR =	newhope_initiator
 NEWHOPERESPONDER =	newhope_responder
 NEWHOPESPEED = newhope_speed
-
+DTLSTEST =	dtlstest
+FATALERRTEST =	fatalerrtest
+X509TIMETEST = x509_time_test
 TESTS=		alltests
 
 EXE=	$(BNTEST)$(EXE_EXT) $(ECTEST)$(EXE_EXT)  $(ECDSATEST)$(EXE_EXT) $(ECDHTEST)$(EXE_EXT) $(IDEATEST)$(EXE_EXT) \
@@ -90,6 +93,8 @@ EXE=	$(BNTEST)$(EXE_EXT) $(ECTEST)$(EXE_EXT)  $(ECDSATEST)$(EXE_EXT) $(ECDHTEST)
 	$(CONSTTIMETEST)$(EXE_EXT) $(VERIFYEXTRATEST)$(EXE_EXT) \
 	$(CLIENTHELLOTEST)$(EXE_EXT) $(SSLV2CONFTEST)$(EXE_EXT) \
 	$(NEWHOPETEST)$(EXE_EXT) $(NEWHOPEINITIATOR)$(EXE_EXT) $(NEWHOPERESPONDER)$(EXE_EXT) $(NEWHOPESPEED)$(EXE_EXT)
+	$(CLIENTHELLOTEST)$(EXE_EXT) $(SSLV2CONFTEST)$(EXE_EXT) $(DTLSTEST)$(EXE_EXT) \
+	$(BADDTLSTEST)$(EXE_EXT) $(FATALERRTEST)$(EXE_EXT) $(X509TIMETEST)$(EXE_EXT)
 
 # $(METHTEST)$(EXE_EXT)
 
@@ -104,7 +109,9 @@ OBJ=	$(BNTEST).o $(ECTEST).o  $(ECDSATEST).o $(ECDHTEST).o $(IDEATEST).o \
 	$(EVPTEST).o $(EVPEXTRATEST).o $(IGETEST).o $(JPAKETEST).o $(ASN1TEST).o $(V3NAMETEST).o \
 	$(HEARTBEATTEST).o $(CONSTTIMETEST).o $(VERIFYEXTRATEST).o \
 	$(CLIENTHELLOTEST).o  $(SSLV2CONFTEST).o $(NEWHOPETEST).o \
-	$(NEWHOPEINITIATOR).o $(NEWHOPERESPONDER).o $(NEWHOPESPEED).o
+	$(NEWHOPEINITIATOR).o $(NEWHOPERESPONDER).o $(NEWHOPESPEED).o \
+	$(CLIENTHELLOTEST).o  $(SSLV2CONFTEST).o $(DTLSTEST).o ssltestlib.o \
+	$(BADDTLSTEST).o $(FATALERRTEST).o $(X509TIMETEST).o
 
 SRC=	$(BNTEST).c $(ECTEST).c  $(ECDSATEST).c $(ECDHTEST).c $(IDEATEST).c \
 	$(MD2TEST).c  $(MD4TEST).c $(MD5TEST).c \
@@ -117,9 +124,11 @@ SRC=	$(BNTEST).c $(ECTEST).c  $(ECDSATEST).c $(ECDHTEST).c $(IDEATEST).c \
 	$(V3NAMETEST).c $(HEARTBEATTEST).c $(CONSTTIMETEST).c $(VERIFYEXTRATEST).c \
 	$(CLIENTHELLOTEST).c  $(SSLV2CONFTEST).c $(NEWHOPETEST).c \
 	$(NEWHOPEINITIATOR).c $(NEWHOPERESPONDER).c $(NEWHOPESPEED).c
+	$(CLIENTHELLOTEST).c  $(SSLV2CONFTEST).c $(DTLSTEST).c ssltestlib.c \
+	$(BADDTLSTEST).c $(FATALERRTEST).c $(X509TIMETEST).c
 
 EXHEADER= 
-HEADER=	testutil.h $(EXHEADER)
+HEADER=	testutil.h ssltestlib.h $(EXHEADER)
 
 ALL=    $(GENERAL) $(SRC) $(HEADER)
 
@@ -162,6 +171,7 @@ alltests: \
 	test_jpake test_srp test_cms test_ocsp test_v3name test_heartbeat \
 	test_constant_time test_verify_extra test_clienthello test_sslv2conftest \
 	test_newhope
+	test_dtls test_bad_dtls test_fatalerr test_x509_time
 
 test_evp: $(EVPTEST)$(EXE_EXT) evptests.txt
 	../util/shlib_wrap.sh ./$(EVPTEST) evptests.txt
@@ -309,6 +319,7 @@ test_ssl: keyU.ss certU.ss certCA.ss certP1.ss keyP1.ss certP2.ss keyP2.ss \
 	fi
 	../util/shlib_wrap.sh ./$(SSLTEST) -test_cipherlist
 	@sh ./testssl keyU.ss certU.ss certCA.ss
+	@sh ./testssl keyU.ss certU.ss certCA.ss -rle
 	@sh ./testsslproxy keyP1.ss certP1.ss intP1.ss
 	@sh ./testsslproxy keyP2.ss certP2.ss intP2.ss
 
@@ -370,6 +381,18 @@ test_clienthello: $(CLIENTHELLOTEST)$(EXE_EXT)
 	@echo $(START) $@
 	../util/shlib_wrap.sh ./$(CLIENTHELLOTEST)
 
+test_bad_dtls: $(BADDTLSTEST)$(EXE_EXT)
+	@echo $(START) $@
+	../util/shlib_wrap.sh ./$(BADDTLSTEST)
+
+test_fatalerr: $(FATALERRTEST)$(EXE_EXT)
+	@echo $(START) $@
+	../util/shlib_wrap.sh ./$(FATALERRTEST) ../apps/server.pem ../apps/server.pem
+
+test_x509_time: $(X509TIMETEST)$(EXE_EXT)
+	@echo $(START) $@
+	../util/shlib_wrap.sh ./$(X509TIMETEST)
+
 test_sslv2conftest: $(SSLV2CONFTEST)$(EXE_EXT)
 	@echo $(START) $@
 	../util/shlib_wrap.sh ./$(SSLV2CONFTEST)
@@ -377,6 +400,9 @@ test_sslv2conftest: $(SSLV2CONFTEST)$(EXE_EXT)
 test_newhope: $(NEWHOPETEST)$(EXE_EXT) $(NEWHOPEINITIATOR)$(EXE_EXT) $(NEWHOPERESPONDER)$(EXE_EXT) $(NEWHOPESPEED)$(EXE_EXT)
 	@echo $(START) $@
 	../util/shlib_wrap.sh ./$(NEWHOPETEST)
+test_dtls: $(DTLSTEST)$(EXE_EXT)
+	@echo $(START) $@
+	../util/shlib_wrap.sh ./$(DTLSTEST) ../apps/server.pem ../apps/server.pem
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
@@ -409,7 +435,7 @@ BUILD_CMD=shlib_target=; if [ -n "$(SHARED_LIBS)" ]; then \
 	fi; \
 	LIBRARIES="$(LIBSSL) $(LIBCRYPTO) $(LIBKRB5)"; \
 	$(MAKE) -f $(TOP)/Makefile.shared -e \
-		CC="$${CC}" APPNAME=$$target$(EXE_EXT) OBJECTS="$$target.o" \
+		CC="$${CC}" APPNAME=$$target$(EXE_EXT) OBJECTS="$$target.o $$exobj" \
 		LIBDEPS="$(PEX_LIBS) $$LIBRARIES $(EX_LIBS)" \
 		link_app.$${shlib_target}
 
@@ -555,6 +581,15 @@ $(VERIFYEXTRATEST)$(EXE_EXT): $(VERIFYEXTRATEST).o
 $(CLIENTHELLOTEST)$(EXE_EXT): $(CLIENTHELLOTEST).o
 	@target=$(CLIENTHELLOTEST) $(BUILD_CMD)
 
+$(BADDTLSTEST)$(EXE_EXT): $(BADDTLSTEST).o
+	@target=$(BADDTLSTEST) $(BUILD_CMD)
+
+$(FATALERRTEST)$(EXE_EXT): $(FATALERRTEST).o ssltestlib.o $(DLIBSSL) $(DLIBCRYPTO)
+	@target=$(FATALERRTEST); exobj=ssltestlib.o; $(BUILD_CMD)
+
+$(X509TIMETEST)$(EXE_EXT): $(X509TIMETEST).o
+	@target=$(X509TIMETEST) $(BUILD_CMD)
+
 $(SSLV2CONFTEST)$(EXE_EXT): $(SSLV2CONFTEST).o
 	@target=$(SSLV2CONFTEST) $(BUILD_CMD)
 
@@ -569,6 +604,9 @@ $(NEWHOPERESPONDER)$(EXE_EXT): $(NEWHOPERESPONDER).o $(DLIBCRYPTO)
 
 $(NEWHOPESPEED)$(EXE_EXT): $(NEWHOPESPEED).o $(DLIBCRYPTO)
 	@target=$(NEWHOPESPEED) $(BUILD_CMD)
+
+$(DTLSTEST)$(EXE_EXT): $(DTLSTEST).o ssltestlib.o $(DLIBSSL) $(DLIBCRYPTO)
+	@target=$(DTLSTEST); exobj=ssltestlib.o; $(BUILD_CMD)
 
 #$(AESTEST).o: $(AESTEST).c
 #	$(CC) -c $(CFLAGS) -DINTERMEDIATE_VALUE_KAT -DTRACE_KAT_MCT $(AESTEST).c
@@ -597,6 +635,25 @@ asn1test.o: ../include/openssl/pkcs7.h ../include/openssl/safestack.h
 asn1test.o: ../include/openssl/sha.h ../include/openssl/stack.h
 asn1test.o: ../include/openssl/symhacks.h ../include/openssl/x509.h
 asn1test.o: ../include/openssl/x509_vfy.h asn1test.c
+bad_dtls_test.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
+bad_dtls_test.o: ../include/openssl/buffer.h ../include/openssl/comp.h
+bad_dtls_test.o: ../include/openssl/crypto.h ../include/openssl/dtls1.h
+bad_dtls_test.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
+bad_dtls_test.o: ../include/openssl/ecdh.h ../include/openssl/ecdsa.h
+bad_dtls_test.o: ../include/openssl/err.h ../include/openssl/evp.h
+bad_dtls_test.o: ../include/openssl/hmac.h ../include/openssl/kssl.h
+bad_dtls_test.o: ../include/openssl/lhash.h ../include/openssl/obj_mac.h
+bad_dtls_test.o: ../include/openssl/objects.h ../include/openssl/opensslconf.h
+bad_dtls_test.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
+bad_dtls_test.o: ../include/openssl/pem.h ../include/openssl/pem2.h
+bad_dtls_test.o: ../include/openssl/pkcs7.h ../include/openssl/pqueue.h
+bad_dtls_test.o: ../include/openssl/rand.h ../include/openssl/safestack.h
+bad_dtls_test.o: ../include/openssl/sha.h ../include/openssl/srtp.h
+bad_dtls_test.o: ../include/openssl/ssl.h ../include/openssl/ssl2.h
+bad_dtls_test.o: ../include/openssl/ssl23.h ../include/openssl/ssl3.h
+bad_dtls_test.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
+bad_dtls_test.o: ../include/openssl/tls1.h ../include/openssl/x509.h
+bad_dtls_test.o: ../include/openssl/x509_vfy.h bad_dtls_test.c
 bftest.o: ../e_os.h ../include/openssl/blowfish.h ../include/openssl/e_os2.h
 bftest.o: ../include/openssl/opensslconf.h bftest.c
 bntest.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
@@ -658,6 +715,25 @@ dsatest.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 dsatest.o: ../include/openssl/ossl_typ.h ../include/openssl/rand.h
 dsatest.o: ../include/openssl/safestack.h ../include/openssl/stack.h
 dsatest.o: ../include/openssl/symhacks.h dsatest.c
+dtlstest.o: ../include/openssl/asn1.h ../include/openssl/bio.h
+dtlstest.o: ../include/openssl/buffer.h ../include/openssl/comp.h
+dtlstest.o: ../include/openssl/crypto.h ../include/openssl/dtls1.h
+dtlstest.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
+dtlstest.o: ../include/openssl/ecdh.h ../include/openssl/ecdsa.h
+dtlstest.o: ../include/openssl/err.h ../include/openssl/evp.h
+dtlstest.o: ../include/openssl/hmac.h ../include/openssl/kssl.h
+dtlstest.o: ../include/openssl/lhash.h ../include/openssl/obj_mac.h
+dtlstest.o: ../include/openssl/objects.h ../include/openssl/opensslconf.h
+dtlstest.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
+dtlstest.o: ../include/openssl/pem.h ../include/openssl/pem2.h
+dtlstest.o: ../include/openssl/pkcs7.h ../include/openssl/pqueue.h
+dtlstest.o: ../include/openssl/safestack.h ../include/openssl/sha.h
+dtlstest.o: ../include/openssl/srtp.h ../include/openssl/ssl.h
+dtlstest.o: ../include/openssl/ssl2.h ../include/openssl/ssl23.h
+dtlstest.o: ../include/openssl/ssl3.h ../include/openssl/stack.h
+dtlstest.o: ../include/openssl/symhacks.h ../include/openssl/tls1.h
+dtlstest.o: ../include/openssl/x509.h ../include/openssl/x509_vfy.h dtlstest.c
+dtlstest.o: ssltestlib.h testutil.h
 ecdhtest.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
 ecdhtest.o: ../include/openssl/bn.h ../include/openssl/crypto.h
 ecdhtest.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
@@ -741,6 +817,25 @@ exptest.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 exptest.o: ../include/openssl/ossl_typ.h ../include/openssl/rand.h
 exptest.o: ../include/openssl/safestack.h ../include/openssl/stack.h
 exptest.o: ../include/openssl/symhacks.h exptest.c
+fatalerrtest.o: ../include/openssl/asn1.h ../include/openssl/bio.h
+fatalerrtest.o: ../include/openssl/buffer.h ../include/openssl/comp.h
+fatalerrtest.o: ../include/openssl/crypto.h ../include/openssl/dtls1.h
+fatalerrtest.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
+fatalerrtest.o: ../include/openssl/ecdh.h ../include/openssl/ecdsa.h
+fatalerrtest.o: ../include/openssl/err.h ../include/openssl/evp.h
+fatalerrtest.o: ../include/openssl/hmac.h ../include/openssl/kssl.h
+fatalerrtest.o: ../include/openssl/lhash.h ../include/openssl/obj_mac.h
+fatalerrtest.o: ../include/openssl/objects.h ../include/openssl/opensslconf.h
+fatalerrtest.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
+fatalerrtest.o: ../include/openssl/pem.h ../include/openssl/pem2.h
+fatalerrtest.o: ../include/openssl/pkcs7.h ../include/openssl/pqueue.h
+fatalerrtest.o: ../include/openssl/safestack.h ../include/openssl/sha.h
+fatalerrtest.o: ../include/openssl/srtp.h ../include/openssl/ssl.h
+fatalerrtest.o: ../include/openssl/ssl2.h ../include/openssl/ssl23.h
+fatalerrtest.o: ../include/openssl/ssl3.h ../include/openssl/stack.h
+fatalerrtest.o: ../include/openssl/symhacks.h ../include/openssl/tls1.h
+fatalerrtest.o: ../include/openssl/x509.h ../include/openssl/x509_vfy.h
+fatalerrtest.o: fatalerrtest.c ssltestlib.h
 heartbeat_test.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
 heartbeat_test.o: ../include/openssl/buffer.h ../include/openssl/comp.h
 heartbeat_test.o: ../include/openssl/crypto.h ../include/openssl/dsa.h
@@ -915,6 +1010,24 @@ ssltest.o: ../include/openssl/ssl23.h ../include/openssl/ssl3.h
 ssltest.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
 ssltest.o: ../include/openssl/tls1.h ../include/openssl/x509.h
 ssltest.o: ../include/openssl/x509_vfy.h ../include/openssl/x509v3.h ssltest.c
+ssltestlib.o: ../include/openssl/asn1.h ../include/openssl/bio.h
+ssltestlib.o: ../include/openssl/buffer.h ../include/openssl/comp.h
+ssltestlib.o: ../include/openssl/crypto.h ../include/openssl/dtls1.h
+ssltestlib.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
+ssltestlib.o: ../include/openssl/ecdh.h ../include/openssl/ecdsa.h
+ssltestlib.o: ../include/openssl/evp.h ../include/openssl/hmac.h
+ssltestlib.o: ../include/openssl/kssl.h ../include/openssl/lhash.h
+ssltestlib.o: ../include/openssl/obj_mac.h ../include/openssl/objects.h
+ssltestlib.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
+ssltestlib.o: ../include/openssl/ossl_typ.h ../include/openssl/pem.h
+ssltestlib.o: ../include/openssl/pem2.h ../include/openssl/pkcs7.h
+ssltestlib.o: ../include/openssl/pqueue.h ../include/openssl/safestack.h
+ssltestlib.o: ../include/openssl/sha.h ../include/openssl/srtp.h
+ssltestlib.o: ../include/openssl/ssl.h ../include/openssl/ssl2.h
+ssltestlib.o: ../include/openssl/ssl23.h ../include/openssl/ssl3.h
+ssltestlib.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
+ssltestlib.o: ../include/openssl/tls1.h ../include/openssl/x509.h
+ssltestlib.o: ../include/openssl/x509_vfy.h ssltestlib.c ssltestlib.h
 sslv2conftest.o: ../include/openssl/asn1.h ../include/openssl/bio.h
 sslv2conftest.o: ../include/openssl/buffer.h ../include/openssl/comp.h
 sslv2conftest.o: ../include/openssl/crypto.h ../include/openssl/dtls1.h
@@ -967,3 +1080,15 @@ wp_test.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 wp_test.o: ../include/openssl/ossl_typ.h ../include/openssl/safestack.h
 wp_test.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
 wp_test.o: ../include/openssl/whrlpool.h wp_test.c
+x509_time_test.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
+x509_time_test.o: ../include/openssl/buffer.h ../include/openssl/crypto.h
+x509_time_test.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
+x509_time_test.o: ../include/openssl/ecdh.h ../include/openssl/ecdsa.h
+x509_time_test.o: ../include/openssl/evp.h ../include/openssl/lhash.h
+x509_time_test.o: ../include/openssl/obj_mac.h ../include/openssl/objects.h
+x509_time_test.o: ../include/openssl/opensslconf.h
+x509_time_test.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
+x509_time_test.o: ../include/openssl/pkcs7.h ../include/openssl/safestack.h
+x509_time_test.o: ../include/openssl/sha.h ../include/openssl/stack.h
+x509_time_test.o: ../include/openssl/symhacks.h ../include/openssl/x509.h
+x509_time_test.o: ../include/openssl/x509_vfy.h testutil.h x509_time_test.c

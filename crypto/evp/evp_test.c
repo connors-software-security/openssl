@@ -76,6 +76,7 @@ static void hexdump(FILE *f, const char *title, const unsigned char *s, int l)
 static int convert(unsigned char *s)
 {
     unsigned char *d;
+    int digits = 0;
 
     for (d = s; *s; s += 2, ++d) {
         unsigned int n;
@@ -86,8 +87,9 @@ static int convert(unsigned char *s)
         }
         sscanf((char *)s, "%2x", &n);
         *d = (unsigned char)n;
+        digits++;
     }
-    return s - d;
+    return digits;
 }
 
 static char *sstrsep(char **string, const char *delim)
@@ -504,7 +506,7 @@ int main(int argc, char **argv)
         int an = 0;
         int tn = 0;
 
-        if (!fgets((char *)line, sizeof line, f))
+        if (!fgets((char *)line, sizeof(line), f))
             break;
         if (line[0] == '#' || line[0] == '\n')
             continue;
